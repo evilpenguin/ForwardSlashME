@@ -1,0 +1,9 @@
+Package: com.understruction.forwardslashme
+Name: ForwardSlashME
+Depends: mobilesubstrate
+Version: 0.7.0
+Architecture: iphoneos-arm
+Description: '/me' replacement
+Maintainer: EvilPenguin|
+Author: EvilPenguin|
+Section: Tweaks
