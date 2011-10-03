@@ -1,5 +1,5 @@
 // Appname: ForwardSlashME
-// Creator: EvilPenguion && Maximus
+// Creator: EvilPenguin && Maximus
 // Creation Date: 9/20/2011
 // Copyright (c) 2011 EvilPenguin && Maximus
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -20,21 +20,54 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-@interface CKSMSService 
+#define forwardSlashME_PLIST @"/var/mobile/Library/Preferences/com.understruction.forwardslashme.plist"
+#define listenToNotification$withCallBack(notification, callback); 	\
+        CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), \
+        NULL, \
+        (CFNotificationCallback)&callback, \
+        CFSTR(notification), \
+        NULL, \
+        CFNotificationSuspensionBehaviorHold);
+
+@interface CKSMSService  
  	- (id)_newSMSMessageWithText:(id)text forConversation:(id)conversation;
 @end
+
+static NSMutableDictionary *plistDict;
+static BOOL isEnabled;
+static void loadSettings(void) {
+	NSLog(@"ForwardSlashME: just updating some settings. Nothing to see here, move along.");
+	if (plistDict) {
+		[plistDict release];
+		plistDict = nil;
+	}
+	plistDict = [[NSMutableDictionary alloc] initWithContentsOfFile:forwardSlashME_PLIST];
+	if (plistDict == nil) { plistDict = [[NSMutableDictionary alloc] init]; }
+	isEnabled = [plistDict objectForKey:@"ForwardSlashMEEnabled"] ? [[plistDict objectForKey:@"ForwardSlashMEEnabled"] boolValue] : YES;
+}
 
 %hook CKSMSService
 - (id)_newSMSMessageWithText:(id)text forConversation:(id)conversation {
 	NSLog(@"ForwardSlashME: I take cookies, and I replace them with brownies: '%@'", text); 
 	NSString *forwardSlashText = text;
-	if ([forwardSlashText hasPrefix:@"/me"]) {
-		forwardSlashText = [forwardSlashText stringByReplacingOccurrencesOfString:@"/me" withString:@"*"];
-		forwardSlashText = [forwardSlashText stringByAppendingString:@"*"];
-		forwardSlashText = [forwardSlashText stringByReplacingOccurrencesOfString:@"* " withString:@"*"];
-		forwardSlashText = [forwardSlashText stringByReplacingOccurrencesOfString:@" *" withString:@"*"];
+	if (isEnabled) {
+		if ([forwardSlashText hasPrefix:@"/me"]) {
+			NSString *userName = [plistDict objectForKey:@"ForwardSlashMEUsername"] ? [plistDict objectForKey:@"ForwardSlashMEUsername"] : @"";
+			forwardSlashText = [forwardSlashText stringByReplacingOccurrencesOfString:@"/me" withString:[NSString stringWithFormat:@"*%@ ", userName]];
+			forwardSlashText = [forwardSlashText stringByAppendingString:@"*"];
+			forwardSlashText = [forwardSlashText stringByReplacingOccurrencesOfString:@"  " withString:@" "];
+			forwardSlashText = [forwardSlashText stringByReplacingOccurrencesOfString:@"* " withString:@"*"];
+			forwardSlashText = [forwardSlashText stringByReplacingOccurrencesOfString:@" *" withString:@"*"];
+		}
 	}
 	return %orig(forwardSlashText, conversation);
 }
-
 %end
+
+%ctor {
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+	%init;
+	listenToNotification$withCallBack("com.understruction.forwardslashme.update", loadSettings);
+	loadSettings();
+	[pool drain];
+}
